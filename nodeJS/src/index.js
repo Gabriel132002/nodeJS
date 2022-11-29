@@ -1,45 +1,67 @@
-const express = require('express') //express por padrão não le formato JSON
+const express = require('express') //express por padrão não lê formato JSON
+const {v4: uuidv4} = require('uuid')
 const app = express()
 app.use(express.json())
 
 // GET http://localhost:5000/projects?title=Node&owner=Gabriel&page=1
 //
 
+const projects = []
+
 app.get('/projects', function(request, response) {
-    const {title, owner, page} = request.query
-    console.log(title, owner, page)
-    return response.json([
-        'projeto 1',
-        'projeto 2'
-    ])
+    return response.json(projects)
 })
 
 app.post('/projects', function(request, response) {
     const {name, owner} = request.body //body <- serve para receber um JSON com informações que estão sendo enviadas para criação de um novo projeto
-    console.log(name, owner)
-    return response.json([
-        'projeto 1',
-        'projeto 2',
-        'projeto 3'
-    ])
+                                      //serve para receber as informações do front-end para a API
+    const project = {
+        id: uuidv4(),
+        name,
+        owner
+    }
+    projects.push(project)
+
+    return response.status(201).json(project)
 })
 
 app.put('/projects/:id', function(request, response) { //put = identificacao do projeto que quero atualizar
     const {id} = request.params
     const {name, owner} = request.body
-    console.log(id, name, owner)
-    return response.json([
-        'projeto 4',
-        'projeto 2',
-        'projeto 3'
-    ])
+   
+    const projectIndex = projects.findIndex(p => p.id === id)
+
+    if(projectIndex < 0 ) {
+        return response.status(404).json({error: 'Project not found'})
+    }
+
+    if(!name || !owner) {
+        return response.status(400).json({error: 'Name annd owner are required'})
+    }
+
+    const project = {
+        id, 
+        name, 
+        owner
+    }
+
+    projects[projectIndex] = project
+
+    return response.json(project)
 })
 
 app.delete('/projects/:id', function(request, response) {
-    return response.json([
-        'projeto 2',
-        'projeto 3'
-    ])
+    const {id} = request.params
+
+    const projectIndex = projects.findIndex(p => p.id === id)
+
+    if(projectIndex < 0 ) {
+        return response.status(404).json({error: 'Project not found'})
+    }
+
+    projects.splice(projectIndex, 1)
+
+    return response.status(204).send()
 })
 
 app.listen(5000, () => {
