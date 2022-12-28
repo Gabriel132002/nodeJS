@@ -1,15 +1,30 @@
 import { Role } from '@roles/entities/Roles'
+import { dataSource } from '@shared/typeorm'
+import { Repository } from 'typeorm'
 
 type CreateRoleDTO = {
   name: string
 }
 
+export type PaginateParams = {
+  page: number
+  skip: number
+  take: number
+}
+
+export type RolesPaginateProperties = {
+  per_page: number
+  total: number
+  current_page: number
+  data: Role[]
+}
+
 export class RolesRepository {
-  private roles: Role[] = []
+  private repository: Repository<Role>
   private static INSTANCE: RolesRepository
 
   private constructor() {
-    this.roles = []
+    this.repository = dataSource.getRepository(Role)
   }
 
   public static getInstance(): RolesRepository {
@@ -19,24 +34,45 @@ export class RolesRepository {
     return RolesRepository.INSTANCE
   }
 
-  create({ name }: CreateRoleDTO): Role {
-    const role = new Role()
+  async create({ name }: CreateRoleDTO): Promise<Role> {
+    const role = this.repository.create({ name })
+    return this.repository.save(role)
+  }
 
-    Object.assign(role, {
-      //a função object vai jogar dentro da classe role os objetos name e created_at
-      name,
-      created_at: new Date(),
-    })
+  async save(role: Role): Promise<Role> {
+    return this.repository.save(role)
+  }
 
-    this.roles.push(role)
+  async delete(role: Role): Promise<void> {
+    await this.repository.remove(role)
+  }
+
+  async findAll({
+    page,
+    skip,
+    take,
+  }: PaginateParams): Promise<RolesPaginateProperties> {
+    const [roles, count] = await this.repository
+      .createQueryBuilder()
+      .skip(skip)
+      .take(take)
+      .getManyAndCount()
+    const result = {
+      per_page: take,
+      total: count,
+      current_page: page,
+      data: roles,
+    }
+    return result
+  }
+
+  async findByName(name: string): Promise<Role | null> {
+    const role = await this.repository.findOneBy({ name })
     return role
   }
 
-  findAll(): Role[] {
-    return this.roles
-  }
-
-  findByName(name: string): Role | undefined {
-    return this.roles.find(role => role.name === name)
+  async findById(id: string): Promise<Role | null> {
+    const role = await this.repository.findOneBy({ id: id })
+    return role
   }
 }
